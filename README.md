@@ -39,23 +39,33 @@ To test the ARP implementation for 1st Week's work, to see whether it replies to
     $ apring -I tap0 10.0.0.4
 
 Output should be like:
-    ARPING 10.0.0.4 from 10.0.0.5 tap0
-    Unicast reply from 10.0.0.4 [00:0C:29:6D:50:25]  0.569ms
-    Unicast reply from 10.0.0.4 [00:0C:29:6D:50:25]  0.622ms
+    $ ARPING 10.0.0.4 from 10.0.0.5 tap0
+    $ Unicast reply from 10.0.0.4 [00:0C:29:6D:50:25]  0.569ms
+    $ Unicast reply from 10.0.0.4 [00:0C:29:6D:50:25]  0.622ms
 
 Now, try:
 
     $ arp
 
 Output should have:
-    Address                  HWtype  HWaddress           Flags Mask            Iface
-    10.0.0.4                 ether   00:0c:29:6d:50:25   C                     tap0
+    $ Address                  HWtype  HWaddress           Flags Mask            Iface
+    $ 10.0.0.4                 ether   00:0c:29:6d:50:25   C                     tap0
 
 The kernel’s networking stack recognized the ARP reply from our custom networking stack, and consequently populated its ARP cache with the entry of our virtual network device. Success!
 
 Now, to test 2nd week's work where we implemented a minimum viable IP layer and test it with ICMP echo requests:
 
     $ ping 10.0.0.4 
+    
+Example Output:
+
+    $ Unknown IP header proto
+    $ Unknown IP header proto
+    $ ICMP V4 Echo request recieved!    
+    $ ICMP V4 Echo request recieved!
+    $ ICMP V4 Echo request recieved!
+    $ ICMP V4 Echo request recieved!
+    $ Unsupported ethertype 86dd
 
 On the `cs359` running terminal you shall see "ICMP V4 Echo request recieved!" messages for each packet sent. ICMP V4 reply and IP transpission functions have not been implemented yet, so it ping command will show 0 packets recieved. 
 
