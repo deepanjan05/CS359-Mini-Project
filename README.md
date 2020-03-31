@@ -39,6 +39,7 @@ To test the ARP implementation for 1st Week's work, to see whether it replies to
     $ apring -I tap0 10.0.0.4
 
 Output should be like:
+    
     $ ARPING 10.0.0.4 from 10.0.0.5 tap0
     $ Unicast reply from 10.0.0.4 [00:0C:29:6D:50:25]  0.569ms
     $ Unicast reply from 10.0.0.4 [00:0C:29:6D:50:25]  0.622ms
