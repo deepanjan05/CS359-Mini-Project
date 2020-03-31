@@ -15,7 +15,10 @@ When building, `sudo setcap ...` probably asks super user permissions from you. 
 Currently, `cs359` also configures the tap interface through the `ip` tool. Hence, give it permissions too:
 
     $ which ip
-    /bin/ip
+    /sbin/ip
+
+`/sbin/ip` being symbolic link to `/bin/ip` the next command is: 
+
     $ sudo setcap cap_net_admin=ep /bin/ip
 
 # Setup
@@ -31,7 +34,7 @@ In essence, `cs359` operates as a host inside the tap device's subnet.
 
 When you've built cs359 and setup your host stack to forward packets, to check if things are working properly:
 
-    $ ./lvl-ip
+    $ sudo ./cs359
 
 Now, open a new terminal.
 To test the ARP implementation for 1st Week's work, to see whether it replies to ARP requests correctly:
