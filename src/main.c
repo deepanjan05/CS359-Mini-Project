@@ -6,6 +6,7 @@
 #include "route.h"
 #include "ethernet.h"
 #include "arp.h"
+#include "tcp.h"
 #include "netdev.h"
 #include "ip.h"
 
@@ -70,6 +71,7 @@ static void init_stack()
     netdev_init();
     route_init();
     arp_init();
+    tcp_init();
 }
 
 static void run_threads()

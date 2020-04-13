@@ -54,3 +54,6 @@ uint16_t checksum(void *addr, int count, int start_sum)
     return ~sum;
 }
 
+uint32_t min(uint32_t x, uint32_t y) {
+    return x > y ? y : x;
+}
