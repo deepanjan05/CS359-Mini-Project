@@ -3,6 +3,7 @@
 #include "arp.h"
 #include "ip.h"
 #include "icmpv4.h"
+#include "tcp.h"
 #include "utils.h"
 
 static void ip_init_pkt(struct iphdr *ih)
@@ -41,6 +42,8 @@ int ip_rcv(struct sk_buff *skb)
         goto drop_pkt;
     }
 
+    // TODO: Check fragmentation, possibly reassemble
+
     ip_init_pkt(ih);
 
     ip_dbg("in", ih);
@@ -50,7 +53,7 @@ int ip_rcv(struct sk_buff *skb)
         icmpv4_incoming(skb);
         return 0;
     case IP_TCP:
-        printf("TCP packet recieved!\n");
+        tcp_in(skb);
         return 0;
     default:
         print_err("Unknown IP header proto\n");

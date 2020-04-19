@@ -3,6 +3,7 @@
 #include "syshead.h"
 #include "ethernet.h"
 #include "skbuff.h"
+#include "sock.h"
 
 #define IPV4 0x04
 #define IP_TCP 0x06
@@ -61,5 +62,6 @@ static inline uint32_t ip_parse(char *addr)
 }
 
 int ip_rcv(struct sk_buff *skb);
-// TODO: IP TRANSMIT
+int ip_output(struct sock *sk, struct sk_buff *skb);
+
 #endif

@@ -54,6 +54,38 @@ uint16_t checksum(void *addr, int count, int start_sum)
     return ~sum;
 }
 
+int get_address(char *host, char *port, struct sockaddr *addr)
+{
+    struct addrinfo hints;
+    struct addrinfo *result, *rp;
+    int s;
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    s = getaddrinfo(host, port, &hints, &result);
+
+    if (s != 0) {
+        print_err("getaddrinfo: %s\n", gai_strerror(s));
+        exit(EXIT_FAILURE);
+    }
+
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+        *addr = *rp->ai_addr;
+        freeaddrinfo(result);
+        return 0;
+    }
+    
+    return 1;
+}
+
+uint32_t parse_ipv4_string(char* addr) {
+    uint8_t addr_bytes[4];
+    sscanf(addr, "%hhu.%hhu.%hhu.%hhu", &addr_bytes[3], &addr_bytes[2], &addr_bytes[1], &addr_bytes[0]);
+    return addr_bytes[0] | addr_bytes[1] << 8 | addr_bytes[2] << 16 | addr_bytes[3] << 24;
+}
+
 uint32_t min(uint32_t x, uint32_t y) {
     return x > y ? y : x;
 }

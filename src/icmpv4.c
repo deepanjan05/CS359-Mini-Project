@@ -12,7 +12,6 @@ void icmpv4_incoming(struct sk_buff *skb)
 
     switch (icmp->type) {
     case ICMP_V4_ECHO:
-        printf("ICMP V4 Echo request recieved!\n");
         icmpv4_reply(skb);
         return;
     case ICMP_V4_DST_UNREACHABLE:
@@ -33,9 +32,9 @@ void icmpv4_reply(struct sk_buff *skb)
 {
     struct iphdr *iphdr = ip_hdr(skb);
     struct icmp_v4 *icmp;
-
-    // TODO: Add support for sockets to involve actual application level replies.
-
+    struct sock sk;
+    memset(&sk, 0, sizeof(struct sock));
+    
     uint16_t icmp_len = iphdr->len - (iphdr->ihl * 4);
 
     skb_reserve(skb, ETH_HDR_LEN + IP_HDR_LEN + icmp_len);
@@ -48,8 +47,8 @@ void icmpv4_reply(struct sk_buff *skb)
     icmp->csum = checksum(icmp, icmp_len, 0);
 
     skb->protocol = ICMPV4;
-    
-    // Socket part required here.
+    sk.daddr = iphdr->saddr;
 
+    ip_output(&sk, skb);
     free_skb(skb);
 }
