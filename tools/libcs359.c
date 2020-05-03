@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
 #include "syshead.h"
-#include "liblevelip.h"
+#include "libcs359.h"
 #include "ipc.h"
 #include "list.h"
 #include "utils.h"
@@ -41,15 +41,15 @@ static int (*_getpeername)(int socket, struct sockaddr *restrict address,
 static int (*_getsockname)(int socket, struct sockaddr *restrict address,
                            socklen_t *restrict address_len) = NULL;
 
-static int lvlip_socks_count = 0;
-static LIST_HEAD(lvlip_socks);
+static int cs359_socks_count = 0;
+static LIST_HEAD(cs359_socks);
 
-static inline struct lvlip_sock *lvlip_get_sock(int fd) {
+static inline struct cs359_sock *cs359_get_sock(int fd) {
     struct list_head *item;
-    struct lvlip_sock *sock;
+    struct cs359_sock *sock;
 
-    list_for_each(item, &lvlip_socks) {
-        sock = list_entry(item, struct lvlip_sock, list);
+    list_for_each(item, &cs359_socks) {
+        sock = list_entry(item, struct cs359_sock, list);
         
         if (sock->fd == fd) return sock;
     };
@@ -98,7 +98,7 @@ static int init_socket(char *sockname)
     ret = _connect(data_socket, (const struct sockaddr *) &addr,
                    sizeof(struct sockaddr_un));
     if (ret == -1) {
-        print_err("Error connecting to level-ip. Is it up?\n");
+        print_err("Error connecting to cs359. Is it up?\n");
         exit(EXIT_FAILURE);
     }
 
@@ -110,16 +110,16 @@ static int free_socket(int lvlfd)
     return _close(lvlfd);
 }
 
-static int transmit_lvlip(int lvlfd, struct ipc_msg *msg, int msglen)
+static int transmit_cs359(int lvlfd, struct ipc_msg *msg, int msglen)
 {
     char *buf[RCBUF_LEN];
 
-    // Send mocked syscall to lvl-ip
+    // Send mocked syscall to cs359
     if (_write(lvlfd, (char *)msg, msglen) == -1) {
         perror("Error on writing IPC");
     }
 
-    // Read return value from lvl-ip
+    // Read return value from cs359
     if (_read(lvlfd, buf, RCBUF_LEN) == -1) {
         perror("Could not read IPC response");
     }
@@ -146,14 +146,14 @@ int socket(int domain, int type, int protocol)
         return _socket(domain, type, protocol);
     }
 
-    struct lvlip_sock *sock;
+    struct cs359_sock *sock;
     
-    int lvlfd = init_socket("/tmp/lvlip.socket");
+    int lvlfd = init_socket("/tmp/cs359.socket");
 
-    sock = lvlip_alloc();
+    sock = cs359_alloc();
     sock->lvlfd = lvlfd;
-    list_add_tail(&sock->list, &lvlip_socks);
-    lvlip_socks_count++;
+    list_add_tail(&sock->list, &cs359_socks);
+    cs359_socks_count++;
     
     int pid = getpid();
     int msglen = sizeof(struct ipc_msg) + sizeof(struct ipc_socket);
@@ -170,11 +170,11 @@ int socket(int domain, int type, int protocol)
     
     memcpy(msg->data, &usersock, sizeof(struct ipc_socket));
 
-    int sockfd = transmit_lvlip(sock->lvlfd, msg, msglen);
+    int sockfd = transmit_cs359(sock->lvlfd, msg, msglen);
 
     if (sockfd == -1) {
         /* Socket alloc failed */
-        lvlip_free(sock);
+        cs359_free(sock);
         return -1;
     }
 
@@ -187,10 +187,10 @@ int socket(int domain, int type, int protocol)
 
 int close(int fd)
 {
-    struct lvlip_sock *sock = lvlip_get_sock(fd);
+    struct cs359_sock *sock = cs359_get_sock(fd);
 
     if (sock == NULL) {
-        /* No lvl-ip IPC socket associated */
+        /* No cs359 IPC socket associated */
         return _close(fd);
     }
 
@@ -207,7 +207,7 @@ int close(int fd)
     struct ipc_close *payload = (struct ipc_close *)msg->data;
     payload->sockfd = fd;
 
-    rc = transmit_lvlip(sock->lvlfd, msg, msglen);
+    rc = transmit_cs359(sock->lvlfd, msg, msglen);
     free_socket(sock->lvlfd);
 
     return rc;
@@ -215,10 +215,10 @@ int close(int fd)
 
 int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 {
-    struct lvlip_sock *sock = lvlip_get_sock(sockfd);
+    struct cs359_sock *sock = cs359_get_sock(sockfd);
 
     if (sock == NULL) {
-        /* No lvl-ip IPC socket associated */
+        /* No cs359 IPC socket associated */
         return _connect(sockfd, addr, addrlen);
     }
 
@@ -239,15 +239,15 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 
     memcpy(msg->data, &payload, sizeof(struct ipc_connect));
 
-    return transmit_lvlip(sock->lvlfd, msg, msglen);
+    return transmit_cs359(sock->lvlfd, msg, msglen);
 }
 
 ssize_t write(int sockfd, const void *buf, size_t len)
 {
-    struct lvlip_sock *sock = lvlip_get_sock(sockfd);
+    struct cs359_sock *sock = cs359_get_sock(sockfd);
 
     if (sock == NULL) {
-        /* No lvl-ip IPC socket associated */
+        /* No cs359 IPC socket associated */
         return _write(sockfd, buf, len);
     }
 
@@ -267,15 +267,15 @@ ssize_t write(int sockfd, const void *buf, size_t len)
     memcpy(msg->data, &payload, sizeof(struct ipc_write));
     memcpy(((struct ipc_write *)msg->data)->buf, buf, len);
 
-    return transmit_lvlip(sock->lvlfd, msg, msglen);
+    return transmit_cs359(sock->lvlfd, msg, msglen);
 }
 
 ssize_t read(int sockfd, void *buf, size_t len)
 {
-    struct lvlip_sock *sock = lvlip_get_sock(sockfd);
+    struct cs359_sock *sock = cs359_get_sock(sockfd);
 
     if (sock == NULL) {
-        /* No lvl-ip IPC socket associated */
+        /* No cs359 IPC socket associated */
         return _read(sockfd, buf, len);
     }
 
@@ -295,7 +295,7 @@ ssize_t read(int sockfd, void *buf, size_t len)
 
     memcpy(msg->data, &payload, sizeof(struct ipc_read));
 
-    // Send mocked syscall to lvl-ip
+    // Send mocked syscall to cs359
     if (_write(sock->lvlfd, (char *)msg, msglen) == -1) {
         perror("Error on writing IPC read");
     }
@@ -304,7 +304,7 @@ ssize_t read(int sockfd, void *buf, size_t len)
     char rbuf[rlen];
     memset(rbuf, 0, rlen);
 
-    // Read return value from lvl-ip
+    // Read return value from cs359
     if (_read(sock->lvlfd, rbuf, rlen) == -1) {
         perror("Could not read IPC read response");
     }
@@ -345,7 +345,7 @@ ssize_t sendto(int fd, const void *buf, size_t len,
                int flags, const struct sockaddr *dest_addr,
                socklen_t dest_len)
 {
-    if (!lvlip_get_sock(fd)) return _sendto(fd, buf, len,
+    if (!cs359_get_sock(fd)) return _sendto(fd, buf, len,
                                         flags, dest_addr, dest_len);
 
     return write(fd, buf, len);
@@ -360,7 +360,7 @@ ssize_t recvfrom(int fd, void *restrict buf, size_t len,
                  int flags, struct sockaddr *restrict address,
                  socklen_t *restrict addrlen)
 {
-    if (!lvlip_get_sock(fd)) return _recvfrom(fd, buf, len,
+    if (!cs359_get_sock(fd)) return _recvfrom(fd, buf, len,
                                           flags, address, addrlen);
 
     return read(fd, buf, len);
@@ -369,32 +369,32 @@ ssize_t recvfrom(int fd, void *restrict buf, size_t len,
 int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 {
     struct pollfd *kernel_fds[nfds];
-    struct pollfd *lvlip_fds[nfds];
-    int lvlip_nfds = 0;
+    struct pollfd *cs359_fds[nfds];
+    int cs359_nfds = 0;
     int kernel_nfds = 0;
-    int lvlip_sock = 0;
+    int cs359_sock = 0;
 
-    struct lvlip_sock *sock = NULL;
+    struct cs359_sock *sock = NULL;
 
     for (int i = 0; i < nfds; i++) {
         struct pollfd *pfd = &fds[i];
-        if ((sock = lvlip_get_sock(pfd->fd)) != NULL) {
-            lvlip_fds[lvlip_nfds++] = pfd;
-            lvlip_sock = sock->lvlfd;
+        if ((sock = cs359_get_sock(pfd->fd)) != NULL) {
+            cs359_fds[cs359_nfds++] = pfd;
+            cs359_sock = sock->lvlfd;
         } else {
             kernel_fds[kernel_nfds++] = pfd;
         }
     }
 
     int blocking = 0;
-    if (kernel_nfds > 0 && lvlip_nfds > 0 && timeout == -1) {
+    if (kernel_nfds > 0 && cs359_nfds > 0 && timeout == -1) {
         /* Cannot sleep indefinitely when we demux poll 
-           with both kernel and lvlip fds */
+           with both kernel and cs359 fds */
         timeout = 100;
         blocking = 1;
     }
 
-    lvl_dbg("Poll called with kernel_nfds %d lvlip_nfds %d timeout %d", kernel_nfds, lvlip_nfds, timeout);
+    lvl_dbg("Poll called with kernel_nfds %d cs359_nfds %d timeout %d", kernel_nfds, cs359_nfds, timeout);
 
     for (;;) {
         int events = 0;
@@ -412,42 +412,42 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
             }
         }
 
-        if (lvlip_nfds < 1) {
+        if (cs359_nfds < 1) {
             return events;
         }
     
         int pid = getpid();
         int pollfd_size = sizeof(struct ipc_pollfd);
-        int msglen = sizeof(struct ipc_msg) + sizeof(struct ipc_poll) + pollfd_size * lvlip_nfds;
+        int msglen = sizeof(struct ipc_msg) + sizeof(struct ipc_poll) + pollfd_size * cs359_nfds;
         struct ipc_msg *msg = alloca(msglen);
 
         msg->type = IPC_POLL;
         msg->pid = pid;
 
         struct ipc_poll *data = (struct ipc_poll *)msg->data;
-        data->nfds = lvlip_nfds;
+        data->nfds = cs359_nfds;
         data->timeout = timeout;
 
         struct ipc_pollfd *pfd = NULL;
-        for (int i = 0; i < lvlip_nfds; i++) {
+        for (int i = 0; i < cs359_nfds; i++) {
             pfd = &data->fds[i];
-            pfd->fd = lvlip_fds[i]->fd;
-            pfd->events = lvlip_fds[i]->events;
-            pfd->revents = lvlip_fds[i]->revents;
+            pfd->fd = cs359_fds[i]->fd;
+            pfd->events = cs359_fds[i]->events;
+            pfd->revents = cs359_fds[i]->revents;
         }
 
-        if (_write(lvlip_sock, (char *)msg, msglen) == -1) {
+        if (_write(cs359_sock, (char *)msg, msglen) == -1) {
             perror("Error on writing IPC poll");
             errno = EAGAIN;
             return -1;
         }
 
-        int rlen = sizeof(struct ipc_msg) + sizeof(struct ipc_err) + pollfd_size * lvlip_nfds;
+        int rlen = sizeof(struct ipc_msg) + sizeof(struct ipc_err) + pollfd_size * cs359_nfds;
         char rbuf[rlen];
         memset(rbuf, 0, rlen);
 
-        // Read return value from lvl-ip
-        if (_read(lvlip_sock, rbuf, rlen) == -1) {
+        // Read return value from cs359
+        if (_read(cs359_sock, rbuf, rlen) == -1) {
             perror("Could not read IPC poll response");
             errno = EAGAIN;
             return -1;
@@ -472,9 +472,9 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 
         struct ipc_pollfd *returned = (struct ipc_pollfd *) error->data;
 
-        for (int i = 0; i < lvlip_nfds; i++) {
-            lvlip_fds[i]->events = returned[i].events;
-            lvlip_fds[i]->revents = returned[i].revents;
+        for (int i = 0; i < cs359_nfds; i++) {
+            cs359_fds[i]->events = returned[i].events;
+            cs359_fds[i]->revents = returned[i].revents;
         }
 
         int result = events + error->rc;
@@ -517,7 +517,7 @@ int select(int nfds, fd_set *restrict readfds,
 int setsockopt(int fd, int level, int optname,
                const void *optval, socklen_t optlen)
 {
-    struct lvlip_sock *sock = lvlip_get_sock(fd);
+    struct cs359_sock *sock = cs359_get_sock(fd);
     if (sock == NULL) return _setsockopt(fd, level, optname, optval, optlen);
 
     lvl_sock_dbg("Setsockopt called", sock);
@@ -530,7 +530,7 @@ int setsockopt(int fd, int level, int optname,
 int getsockopt(int fd, int level, int optname,
                void *optval, socklen_t *optlen)
 {
-    struct lvlip_sock *sock = lvlip_get_sock(fd);
+    struct cs359_sock *sock = cs359_get_sock(fd);
     if (sock == NULL) return _getsockopt(fd, level, optname, optval, optlen);
 
     lvl_sock_dbg("Getsockopt called: level %d optname %d optval %d socklen %d",
@@ -553,7 +553,7 @@ int getsockopt(int fd, int level, int optname,
     memcpy(&opts.optval, optval, *optlen);
     memcpy(msg->data, &opts, sizeof(struct ipc_sockopt) + *optlen);
 
-    // Send mocked syscall to lvl-ip
+    // Send mocked syscall to cs359
     if (_write(sock->lvlfd, (char *)msg, msglen) == -1) {
         perror("Error on writing IPC getsockopt");
     }
@@ -562,7 +562,7 @@ int getsockopt(int fd, int level, int optname,
     char rbuf[rlen];
     memset(rbuf, 0, rlen);
 
-    // Read return value from lvl-ip
+    // Read return value from cs359
     if (_read(sock->lvlfd, rbuf, rlen) == -1) {
         perror("Could not read IPC getsockopt response");
     }
@@ -589,7 +589,7 @@ int getsockopt(int fd, int level, int optname,
 
     int val = *(int *)optres->optval;
 
-    /* lvl-ip probably encoded the error value as negative */
+    /* cs359 probably encoded the error value as negative */
     val *= -1;
 
     *(int *)optval = val;
@@ -601,7 +601,7 @@ int getsockopt(int fd, int level, int optname,
 int getpeername(int socket, struct sockaddr *restrict address,
                 socklen_t *restrict address_len)
 {
-    struct lvlip_sock *sock = lvlip_get_sock(socket);
+    struct cs359_sock *sock = cs359_get_sock(socket);
     if (sock == NULL) return _getpeername(socket, address, address_len);
 
     lvl_sock_dbg("Getpeername called", sock);
@@ -616,7 +616,7 @@ int getpeername(int socket, struct sockaddr *restrict address,
     struct ipc_sockname *name = (struct ipc_sockname *)msg->data;
     name->socket = socket;
 
-    // Send mocked syscall to lvl-ip
+    // Send mocked syscall to cs359
     if (_write(sock->lvlfd, (char *)msg, msglen) == -1) {
         perror("Error on writing IPC getpeername");
     }
@@ -625,7 +625,7 @@ int getpeername(int socket, struct sockaddr *restrict address,
     char rbuf[rlen];
     memset(rbuf, 0, rlen);
 
-    // Read return value from lvl-ip
+    // Read return value from cs359
     if (_read(sock->lvlfd, rbuf, rlen) == -1) {
         perror("Could not read IPC getpeername response");
     }
@@ -663,7 +663,7 @@ int getpeername(int socket, struct sockaddr *restrict address,
 int getsockname(int socket, struct sockaddr *restrict address,
                 socklen_t *restrict address_len)
 {
-    struct lvlip_sock *sock = lvlip_get_sock(socket);
+    struct cs359_sock *sock = cs359_get_sock(socket);
     if (sock == NULL) return _getsockname(socket, address, address_len);
 
     lvl_sock_dbg("Getsockname called", sock);
@@ -678,7 +678,7 @@ int getsockname(int socket, struct sockaddr *restrict address,
     struct ipc_sockname *name = (struct ipc_sockname *)msg->data;
     name->socket = socket;
 
-    // Send mocked syscall to lvl-ip
+    // Send mocked syscall to cs359
     if (_write(sock->lvlfd, (char *)msg, msglen) == -1) {
         perror("Error on writing IPC getsockname");
     }
@@ -687,7 +687,7 @@ int getsockname(int socket, struct sockaddr *restrict address,
     char rbuf[rlen];
     memset(rbuf, 0, rlen);
 
-    // Read return value from lvl-ip
+    // Read return value from cs359
     if (_read(sock->lvlfd, rbuf, rlen) == -1) {
         perror("Could not read IPC getsockname response");
     }
@@ -728,7 +728,7 @@ int fcntl(int fildes, int cmd, ...)
     va_list ap;
     void *arg;
 
-    struct lvlip_sock *sock = lvlip_get_sock(fildes);
+    struct cs359_sock *sock = cs359_get_sock(fildes);
 
     if (!sock) {
         va_start(ap, cmd);
@@ -755,7 +755,7 @@ int fcntl(int fildes, int cmd, ...)
     case F_GETFL:
         lvl_sock_dbg("Fcntl GETFL", sock);
 
-        rc = transmit_lvlip(sock->lvlfd, msg, msglen);
+        rc = transmit_cs359(sock->lvlfd, msg, msglen);
         break;
     case F_SETFL:
         lvl_sock_dbg("Fcntl SETFL", sock);
@@ -767,7 +767,7 @@ int fcntl(int fildes, int cmd, ...)
 
         va_end(ap);
 
-        rc = transmit_lvlip(sock->lvlfd, msg, msglen);
+        rc = transmit_cs359(sock->lvlfd, msg, msglen);
         break;
     default:
         rc = -1;
@@ -801,7 +801,7 @@ int __libc_start_main(int (*main) (int, char * *, char * *), int argc,
     _getpeername = dlsym(RTLD_NEXT, "getpeername");
     _getsockname = dlsym(RTLD_NEXT, "getsockname");
 
-    list_init(&lvlip_socks);
+    list_init(&cs359_socks);
 
     return __start_main(main, argc, ubp_av, init, fini, rtld_fini, stack_end);
 }

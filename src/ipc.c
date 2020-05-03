@@ -465,7 +465,7 @@ void *start_ipc_listener()
 {
     int fd, rc, datasock;
     struct sockaddr_un un;
-    char *sockname = "/tmp/lvlip.socket";
+    char *sockname = "/tmp/cs359.socket";
 
     unlink(sockname);
     

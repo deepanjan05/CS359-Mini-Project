@@ -1,13 +1,13 @@
 CPPFLAGS = -I ../include -Wall -Werror
 
-all: liblevelip
+all: libcs359
 
 debug: CFLAGS+= -DDEBUG_API
-debug: liblevelip
+debug: libcs359
 
-liblevelip: liblevelip.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -shared -o liblevelip.so liblevelip.c -ldl
+libcs359: libcs359.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -shared -o libcs359.so libcs359.c -ldl
 
 .PHONY:
 clean:
-	rm liblevelip.so*
+	rm libcs359.so*

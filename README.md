@@ -28,7 +28,20 @@ Currently, `cs359` also configures the tap interface through the `ip` tool. Henc
     $ sudo mknod /dev/net/tap c 10 200
     $ sudo chmod 0666 /dev/net/tap
 
-In essence, `cs359` operates as a host inside the tap device's subnet. 
+In essence, `cs359` operates as a host inside the tap device's subnet. Therefore, in order to communicate with other hosts, the tap device needs to be set in a forwarding mode:
+
+Determine the outgoing interface by using:
+    
+    $ route
+
+An example from a Linux machine, where `wlp3s0` is the outgoing interface, and `tap0` is the tap device for `cs359`:
+
+    $ sudo sysctl -w net.ipv4.ip_forward=1
+    $ sudo iptables -I INPUT --source 10.0.0.0/24 -j ACCEPT
+    $ sudo iptables -t nat -I POSTROUTING --out-interface wlp3s0 -j MASQUERADE
+    $ sudo iptables -I FORWARD --in-interface wlp3s0 --out-interface tap0 -j ACCEPT
+    $ sudo iptables -I FORWARD --in-interface tap0 --out-interface wlp3s0 -j ACCEPT
+
 
 # Testing
 
@@ -37,39 +50,23 @@ When you've built cs359 and setup your host stack to forward packets, to check i
     $ sudo ./cs359
 
 Now, open a new terminal.
-To test the ARP implementation for 1st Week's work, to see whether it replies to ARP requests correctly:
+Check weather `curl` is working or not:
 
-    $ apring -I tap0 10.0.0.4
+    $ curl google.com 80
 
-Output should be like:
-    
-    $ ARPING 10.0.0.4 from 10.0.0.5 tap0
-    $ Unicast reply from 10.0.0.4 [00:0C:29:6D:50:25]  0.569ms
-    $ Unicast reply from 10.0.0.4 [00:0C:29:6D:50:25]  0.622ms
+Output should be like: 
 
-Now, try:
+    <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
+    <TITLE>301 Moved</TITLE></HEAD><BODY>
+    <H1>301 Moved</H1>
+    The document has moved
+    <A HREF="http://www.google.com/">here</A>.
+    </BODY></HTML>
 
-    $ arp
+Now `./tools/tool` is just a bash-script that allows `libcs359.so` to take precedence over the libc socket API calls.
+The important point is that `./tool` aims to be usable against any existing dynamically-linked application. Hence we use the in-built `curl` to test out our tcp/ip stack and our implemented socket interface to communicate with application layer:
 
-Output should have:
-    $ Address                  HWtype  HWaddress           Flags Mask            Iface
-    $ 10.0.0.4                 ether   00:0c:29:6d:50:25   C                     tap0
+    $ ./tools/tool curl google.com 80
 
-The kernel’s networking stack recognized the ARP reply from our custom networking stack, and consequently populated its ARP cache with the entry of our virtual network device. Success!
-
-Now, to test 2nd week's work where we implemented a minimum viable IP layer and test it with ICMP echo requests:
-
-    $ ping 10.0.0.4 
-    
-Example Output:
-
-    $ Unknown IP header proto
-    $ Unknown IP header proto
-    $ ICMP V4 Echo request recieved!    
-    $ ICMP V4 Echo request recieved!
-    $ ICMP V4 Echo request recieved!
-    $ ICMP V4 Echo request recieved!
-    $ Unsupported ethertype 86dd
-
-On the `cs359` running terminal you shall see "ICMP V4 Echo request recieved!" messages for each packet sent. ICMP V4 reply and IP transpission functions have not been implemented yet, so it ping command will show 0 packets recieved. 
-
+Output should be the same as normal curl if the programs are running properly.
+Under the hood, however, `curl` calls the libc socket API but these calls are redirected to `./cs359` instead.
